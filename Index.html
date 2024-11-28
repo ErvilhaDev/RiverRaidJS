@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiverRaid</title>
+</head>
+<body>
+    <canvas id="myCanvas" width="800" height="600" style="border:1px solid #000000;">
+    </canvas>
+
+	<style>
+		body{
+			
+			min-height: 100vh;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+
+			text-align: center;
+			overflow: hidden; /* Hide scrollbars*/
+		}
+	</style>
+<script>
+
+    // Ligando o canvas ao código javascript
+	var canvas = document.getElementById("myCanvas");
+	var context = canvas.getContext("2d");
+	
+	//[FRAMES]
+	var frames = 0;
+
+    //Colidiu?
+    var colidiu = false;
+
+	// [PONTOS]
+	var pontos = 0;
+
+	// [COMBUSTIVEL]
+	var fuel = 100;
+
+	// Velocidade dos objetos
+	var speed_y = 8;
+	
+	// [COLETAVEL] 
+		/* NOTA: Coletavel vai recuperar o valor de 
+		[COMBUSTIVEL] com o passar do tempo
+		se o jogador estiver colidindo */ 
+	var fuelImg = new Image();
+	fuelImg.src = "./fuel.png"
+	
+	var clt_color = "SALMON";
+	var clt_x = 50;
+	var clt_y = 0;
+	var clt_w = 40;
+	var clt_h = 80;
+	var clt_reset = false;
+
+	// [UI]
+	var ui_color = "GREY";
+	var ui_x = 0;
+	var ui_y = 500;
+	var ui_w = 800;
+	var ui_h = 100;
+
+    // [JOGADOR]
+	var playerImg = new Image();
+	playerImg.src = "./plane.png"
+
+	var player_x = 400;
+	var player_y = 400;
+	var player_w = 50;
+	var player_h = 50;
+	var player_color = "YELLOW";	
+	var player_speed = 10;
+
+	// [TIRO]
+	var shot_x = 0;
+	var shot_y = -10000000000;
+	var shot_w = 10;
+	var shot_h = 20;
+	var shot_color = "YELLOW";
+	var shot_speed = 8;
+
+	//[INIMIGO 1]
+	var enemyImg = new Image();
+	enemyImg.src = "./enemy.png"
+
+	var enemy_x = new Array();
+	var enemy_y = new Array();
+	var enemy_w = 50;
+	var enemy_h = 50;
+	var enemy_color = "RED";
+
+	// [PAREDES]
+	var wall_color = "GREEN";
+		// [ESQUERDA]
+	var wallL_x = 0;
+	var wallL_y = 0;
+	var wallL_w = 50;
+	var wallL_h = 600;
+		// [DIREITA]
+	var wallR_x = canvas.width - 50;
+	var wallR_y = 0;
+	var wallR_w = 50;
+	var wallR_h = 600;
+
+	// [OBSTACULOS]
+	var obj_color = "GREEN";
+	var ponte_color = "DarkGray";
+	//obj = objeto; C = Centro; L = esquerda; R = direita
+		//[CENTRO]
+	var objC_x = 340;
+	var objC_y = -120;
+	var objC_w = 150;
+	var objC_h = 300;
+		//[ESQUERDA]
+	var objL_x = 0;
+	var objL_y = -120;
+	var objL_w = 200;
+	var objL_h = 120;
+		//[DIREITA]
+	var objR_x = canvas.width - 200;
+	var objR_y = -120;
+	var objR_w = 200;
+	var objR_h = 120;
+		//[PONTE]
+	var ponte_x = 0;
+	var ponte_y = -120;
+	var ponte_w = 800;
+	var ponte_h = 120;
+
+	// função para desenhar retângulos 
+	function drawRect(x,y,w,h,color)
+	{
+		context.fillStyle = color;
+		context.fillRect(x,y,w,h);
+	}
+
+    // TECLAS PARA MOVER [JOGADOR]
+	var player_moveLeft = false;
+	var player_moveRight = false;
+	var player_shooting = false;
+
+    var start_button = false;
+	
+	// criando funções para uso do teclado 
+	var _keyDown = function(e)
+	{
+		switch (e.keyCode)
+		{
+			case 37: // seta esquerda
+				player_moveLeft = true;
+				break;
+
+			case 39: // seta direita
+				player_moveRight = true;
+				break;
+
+			case 90: // Z button
+				player_shooting = true;
+				break;
+
+            case 13: //start
+                start_button = true;
+                break;
+		}
+	}
+
+	var _keyUp = function(e)
+	{
+		switch (e.keyCode)
+		{
+			case 37:
+				player_moveLeft = false;
+				break;
+
+			case 39:
+				player_moveRight = false;
+				break;
+
+			case 90:
+				player_shooting = false;
+				break;
+
+            case 13:
+                start_button = false;
+                break;
+		}				
+	}
+
+	// registrando as funções
+	document.addEventListener("keydown", _keyDown, true);
+	document.addEventListener("keyup",   _keyUp,   true);
+
+
+	//UPDATES ---------------------------------------------------------------------------------
+    // função de atualização do [JOGADOR]
+	function updatePlayer()
+	{
+			if (player_moveLeft)
+			{
+				player_x -= player_speed;
+			}
+			
+			if (player_moveRight)
+			{
+				player_x += player_speed;
+			}	
+		
+		// colisão [JOGADOR] com a tela
+		if (player_x < 0)
+		{
+			player_x = 0;
+		}	
+		else if (player_x + player_w > canvas.width)
+		{
+			player_x = canvas.width - player_w;
+		}
+
+		// colisão [JOGADOR] com as [PAREDE]
+		if (player_x <= wallL_w || player_x + player_w >= wallR_x){
+            colidiu = true;
+			console.log("Colidiu com a parede");
+		}
+	}
+
+	function updateTiro(){
+		shot_y = shot_y - 15;
+		if(player_shooting && shot_y <= -10){
+			console.log("atirou");
+			shot_x = (player_x + player_w/2);
+			shot_y = (player_y + player_h/2);
+		}
+
+		//Colisão [TIRO] com [COLETAVEL]
+		if (clt_x + clt_w >= shot_x &&
+			clt_x <= shot_x + shot_w &&
+			clt_y + clt_h >= shot_y &&
+			clt_y <= shot_y + shot_h){
+			console.log("[TIRO] Colidiu com [FUEL]");
+
+			pontos = pontos + 500;
+			clt_reset = true;
+
+			shot_y = -120;
+			
+		}
+
+		//Colisão [TIRO] com [OBSTACULOS][CENTRO]
+		if (objC_x + objC_w >= shot_x &&
+			objC_x <= shot_x + shot_w &&
+			objC_y + objC_h >= shot_y &&
+			objC_y <= shot_y + shot_h){
+			console.log("[TIRO] Colidiu com [OBSTACULO]");
+			
+			shot_y = -120;
+			
+		}
+
+		//Colisão [TIRO] com [OBSTACULOS][PONTE]
+		if (ponte_x + ponte_w >= shot_x &&
+			ponte_x <= shot_x + shot_w &&
+			ponte_y + ponte_h >= shot_y &&
+			ponte_y <= shot_y + shot_h){
+
+			ponte_y = -100000000;
+			
+			if(objR_y > canvas.height){
+				ponte_y = objR_y;
+			}
+
+			pontos = pontos + 500;
+			shot_y = -120;
+			
+		}
+	}
+
+	//update do [INIMIGO1]
+	function updateEnemy1(){
+		
+		for(var i = 0; i < 3; i++){
+			enemy_y[i] = enemy_y[i] + speed_y;
+
+			if(enemy_y[i] > canvas.height){
+				enemy_y[i] = -900;
+				enemy_x[i] = 20 + Math.floor(Math.random() * (canvas.width));
+			}
+
+
+			//Colisão [INIMIGO] com [JOGADOR]
+			if(	player_x + player_w >= enemy_x[i] &&
+				player_x <= enemy_x[i] + enemy_w &&
+				player_y + player_h >= enemy_y[i] &&
+				player_y <= enemy_y[i] + enemy_h){
+
+				enemy_y[i] = -120;
+
+				colidiu = true;
+
+				console.log("INIMIGO COLIDIU COM JOGADOR");
+				
+			}
+
+			//Colisão [TIRO] com [INIMIGO]
+
+			if(	shot_x + shot_w >= enemy_x[i] &&
+				shot_x <= enemy_x[i] + enemy_w &&
+				shot_y + shot_h >= enemy_y[i] &&
+				shot_y <= enemy_y[i] + enemy_h){
+
+				enemy_y[i] = -900;
+				enemy_x[i] = 20 + Math.floor(Math.random() * (canvas.width));
+
+				shot_y = -120;
+				pontos = pontos + 300;
+				
+				console.log("Tiro colidiu com INIMIGO");
+			}
+		}
+	}
+
+	// função de atualização do [OBSTACULOS]
+	function updateObstacles(){
+		objC_y = objC_y + speed_y;
+		objL_y = objL_y + speed_y;
+		objR_y = objR_y + speed_y;
+		ponte_y = ponte_y + speed_y;
+
+		//colisão [OBSTACULO] [CENTRO] com o [JOGADOR]
+		if (player_x + player_w >= objC_x &&
+			player_x <= objC_x + objC_w &&
+			player_y + player_h >= objC_y &&
+			player_y <= objC_y +objC_h){
+            colidiu = true;
+			console.log("Colidiu com [OBSTACULO]");
+		}
+
+		//colisão [OBSTACULO] [ESQUERDA] com o [JOGADOR]
+		if (player_x + player_w >= objL_x &&
+			player_x <= objL_x + objL_w &&
+			player_y + player_h >= objL_y &&
+			player_y <= objL_y +objL_h){
+            colidiu = true;
+			console.log("Colidiu com [OBSTACULO]");
+		}
+
+		//colisão [OBSTACULO] [DIREITA] com o [JOGADOR]
+		if (player_x + player_w >= objR_x &&
+			player_x <= objR_x + objR_w &&
+			player_y + player_h >= objR_y &&
+			player_y <= objR_y +objR_h){
+            colidiu = true;
+			console.log("Colidiu com [OBSTACULO]");
+		}
+
+		//colisão [OBSTACULO] [PONTE] com o [JOGADOR]
+		if (player_x + player_w >= ponte_x &&
+			player_x <= ponte_x + ponte_w &&
+			player_y + player_h >= ponte_y &&
+			player_y <= ponte_y + ponte_h){
+            colidiu = true;
+			console.log("Colidiu com [OBSTACULO]");
+		}
+
+
+		// reinicia a posição do [OBSTACULOS] [CENTRO]
+		var passouXFrames_CENTRO = frames % 500 === 0;
+		if(passouXFrames_CENTRO){
+			console.log("respawn [CENTRO]");
+			objC_y = -320;
+			
+		}
+
+		// reinicia a posição do [OBSTACULOS] [ESQUERDA] [DIREITA]
+		var passouXFrames_OBJ = frames % 300 === 0;
+		if(passouXFrames_OBJ){
+			console.log("respawn [OBJ]");
+			objL_y = -120;
+			objR_y = -120;
+		}
+
+		// reinicia a posição do [OBSTACULOS] [ESQUERDA] [DIREITA]
+		var passouXFrames_OBJ = frames % 300 === 0;
+		if(passouXFrames_OBJ){
+			console.log("respawn [OBJ]");
+			ponte_y = -120;
+		}
+
+	}
+
+	function updateColetavel(){	
+		clt_y = clt_y + speed_y;
+
+		//Colisão do [COLETAVEL] com o [JOGADOR]
+		if (player_x + player_w >= clt_x &&
+			player_x <= clt_x + clt_w &&
+			player_y + player_h >= clt_y &&
+			player_y <= clt_y + clt_h){
+			console.log("Colidiu com [FUEL]");
+
+			fuel = fuel + 2;
+		}
+
+		//reinicia a posição do [COLETAVEL] Antigo
+		/*var passouXFrames_Coletavel = frames % 230 === 0;
+		if(passouXFrames_Coletavel){
+			console.log("respawn [Coletavel]");
+			clt_y = - 120;
+			clt_x = 400 * Math.random();
+			clt_x = 700 * Math.random();
+		}*/
+
+		//reinicia a posição do [COLETAVEL] Novo
+		if(clt_y >= canvas.height){
+			console.log("respawn [Coletavel]");
+			clt_reset = true;
+		}
+
+		if(clt_reset){
+			clt_reset = false
+			clt_y = - 1500;
+			clt_x = 400 * Math.random();
+			clt_x = 700 * Math.random();
+		}
+
+	}
+
+	//DRAWS---------------------------------------------------------------------------
+
+	function drawUI(){
+		drawRect(ui_x, ui_y, ui_w, ui_h, ui_color);
+	}
+
+	function drawPlayer()
+	{
+		context.drawImage(playerImg, player_x, player_y, player_w, player_h);		
+	}
+
+	function drawTiro(){
+		drawRect(shot_x, shot_y, shot_w, shot_h, shot_color);
+	}
+
+	for(var i = 0; i < 3; i++){
+		enemy_x[i] = 20 + Math.floor(Math.random() * (canvas.width));
+		enemy_y[i] = 20 + Math.floor(Math.random() * (canvas.height)); 
+	}
+	
+	//draw do [INIMIGO1]
+	function drawInimigo1(){
+		for(var i = 0; i < 3; i++){
+			context.drawImage(enemyImg, enemy_x[i], enemy_y[i], enemy_w, enemy_h);
+		}
+		
+	}
+
+	function drawWalls(){
+		drawRect(wallL_x, wallL_y, wallL_w, wallL_h, wall_color);
+		drawRect(wallR_x, wallR_y, wallR_w, wallR_h, wall_color);
+	}
+
+	function drawObstacles(){
+		
+		drawRect(objC_x, objC_y, objC_w, objC_h, obj_color);
+		drawRect(ponte_x, ponte_y, ponte_w, ponte_h, ponte_color);
+		drawRect(objL_x, objL_y, objL_w, objL_h, obj_color);
+		drawRect(objR_x, objR_y, objR_w, objR_h, obj_color);
+		
+	}
+
+	function drawColetavel(){
+		context.drawImage(fuelImg, clt_x, clt_y, clt_w, clt_h);
+	}
+
+    function drawText(x,y,text,color)
+	{
+		context.fillStyle = color;
+		context.font = "20px Arial";
+		context.fillText(text, x, y);		
+	}
+
+
+	let cenaAtiva = {};
+	function mudaCena(novaCena) {
+  		cenaAtiva = novaCena;
+	}
+
+	const Cenas = {
+		INICIO: {
+            draw(){
+				
+                drawColetavel();
+		        drawWalls();
+		        drawObstacles();
+				drawInimigo1();
+		        drawPlayer();
+		        drawUI();
+				
+
+                player_x = 400;
+
+                drawText(canvas.width - 800, 30, "Pontos: " + Math.round(pontos),
+                 "WHITE");
+
+                drawText(320, 550, "Combustivel: " + fuel, "WHITE");
+
+                drawText(canvas.width / 2 - 140, canvas.height / 2, 
+                "Pressione SETAS para começar", "WHITE");
+
+				drawText(canvas.width / 2 - 140, canvas.height / 2 + 30, 
+                "Pressione Z para atirar", "WHITE");
+            },
+
+            update(){
+                objC_y = -320;
+                objL_y = -320;
+                objR_y = -320;
+				ponte_y = -320;
+
+                frames = 0;
+                pontos = 0;
+                fuel = 100;
+
+                updatePlayer();
+                if(player_moveLeft || player_moveRight){
+                    mudaCena(Cenas.GAME);
+                }
+            },
+        }
+	};
+
+    Cenas.GAME = {
+        draw(){
+
+				drawTiro();
+                drawColetavel();
+		        drawWalls();
+		        drawObstacles();
+				drawInimigo1();
+		        drawPlayer();
+		        drawUI();
+				
+
+                drawText(canvas.width - 800, 30, "Pontos: " + Math.round(pontos),
+                 "WHITE");
+
+                drawText(320, 550, "Combustivel: " + fuel, "WHITE");
+            },
+
+            update(){	
+				updateTiro();
+                updatePlayer();
+                updateColetavel();
+                updateObstacles();
+				updateEnemy1();
+				
+
+                pontos = pontos + 0.1;
+
+                var passouXFrames_FUEL = frames % 100 === 0;
+		        if(passouXFrames_FUEL){
+			        fuel = fuel - 10;
+		        }
+
+                if(fuel <= 0){
+				    fuel = 0;
+                    mudaCena(Cenas.GAMEOVER);
+
+				    console.log("GAME OVER");
+			    }
+
+			    if(fuel >= 100){
+				    fuel = 100;
+			    }
+
+                if(colidiu){
+                    colidiu = false;
+                    mudaCena(Cenas.GAMEOVER);
+                }
+            },
+    };
+
+    Cenas.GAMEOVER = {
+        draw(){
+                drawColetavel();
+		        drawWalls();
+		        drawObstacles();
+				drawInimigo1();
+		        drawPlayer();
+		        drawUI();
+
+                drawText(canvas.width - 800, 30, "Pontos: " + Math.round(pontos),
+                 "WHITE");
+
+                drawText(320, 550, "Combustivel: " + fuel, "WHITE");
+
+                if(fuel <= 0){
+                    drawText(canvas.width / 2 - 140, canvas.height / 2 - 30, 
+                    "Seu combustivel acabou!", "WHITE");
+                }
+                else{
+                    drawText(canvas.width / 2 - 140, canvas.height / 2 - 30, 
+                    "Você morreu!", "WHITE");
+                }
+
+                drawText(canvas.width / 2 - 140, canvas.height / 2, 
+                "Pressione ENTER para continuar", "WHITE");
+            },
+
+            update(){
+                if(start_button){
+                    mudaCena(Cenas.INICIO);
+                }
+                
+            },
+    };
+
+    function draw(){
+		// função de limpeza de área retangular
+		//context.clearRect(0, 0, canvas.width, canvas.height);
+		drawRect(0, 0, canvas.width, canvas.height, "cornflowerblue");
+	}
+
+	function loop(){
+		draw();
+
+        cenaAtiva.draw();
+        cenaAtiva.update();
+		frames = frames+1;
+
+		setTimeout(loop, 30);
+	}
+
+    mudaCena(Cenas.INICIO);
+	loop();
+
+</script>
+
+</body>
+</html>
